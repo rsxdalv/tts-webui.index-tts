@@ -12,6 +12,11 @@ def load_audio(audiopath, sampling_rate):
     audio, sr = torchaudio.load(audiopath)
     # print(f"wave shape: {audio.shape}, sample_rate: {sr}")
 
+    # Normalize: Linux torchaudio.load doesn't auto-normalize int16 like Windows does
+    max_val = torch.abs(audio).max()
+    if max_val > 1.0:
+        audio = audio / max_val
+
     if audio.size(0) > 1:  # mix to mono
         audio = audio[0].unsqueeze(0)
 

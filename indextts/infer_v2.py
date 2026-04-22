@@ -592,11 +592,10 @@ class IndexTTS2:
 
                     m_start_time = time.perf_counter()
                     wav = self.bigvgan(vc_target.float()).squeeze().unsqueeze(0)
-                    print(wav.shape)
                     bigvgan_time += time.perf_counter() - m_start_time
                     wav = wav.squeeze(1)
 
-                wav = torch.clamp(32767 * wav, -32767.0, 32767.0)
+                wav = torch.clamp(wav, -1.0, 1.0)
                 if verbose:
                     print(f"wav shape: {wav.shape}", "min:", wav.min(), "max:", wav.max())
                 # wavs.append(wav[:, :-512])
@@ -624,13 +623,12 @@ class IndexTTS2:
                 print(">> remove old wav file:", output_path)
             if os.path.dirname(output_path) != "":
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            torchaudio.save(output_path, wav.type(torch.int16), sampling_rate)
+            torchaudio.save(output_path, wav.float(), sampling_rate)
             print(">> wav file saved to:", output_path)
             return output_path
         else:
             # 返回以符合Gradio的格式要求
-            wav_data = wav.type(torch.int16)
-            wav_data = wav_data.numpy().T
+            wav_data = wav.float().numpy().T
             return (sampling_rate, wav_data)
 
 

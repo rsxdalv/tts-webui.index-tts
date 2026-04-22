@@ -301,6 +301,10 @@ class IndexTTS:
         # 如果参考音频改变了，才需要重新生成 cond_mel, 提升速度
         if self.cache_cond_mel is None or self.cache_audio_prompt != audio_prompt:
             audio, sr = torchaudio.load(audio_prompt)
+            # Normalize: Linux torchaudio.load doesn't auto-normalize int16 like Windows does
+            max_val = torch.abs(audio).max()
+            if max_val > 1.0:
+                audio = audio / max_val
             audio = torch.mean(audio, dim=0, keepdim=True)
             if audio.shape[0] > 1:
                 audio = audio[0].unsqueeze(0)
@@ -477,7 +481,7 @@ class IndexTTS:
                     bigvgan_time += time.perf_counter() - m_start_time
                     wav = wav.squeeze(1)
                     pass
-            wav = torch.clamp(32767 * wav, -32767.0, 32767.0)
+            wav = torch.clamp(wav, -1.0, 1.0)
             wavs.append(wav.cpu())  # to cpu before saving
 
         # clear cache
@@ -506,13 +510,12 @@ class IndexTTS:
         if output_path:
             # 直接保存音频到指定路径中
             os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            torchaudio.save(output_path, wav.type(torch.int16), sampling_rate)
+            torchaudio.save(output_path, wav.float(), sampling_rate)
             print(">> wav file saved to:", output_path)
             return output_path
         else:
             # 返回以符合Gradio的格式要求
-            wav_data = wav.type(torch.int16)
-            wav_data = wav_data.numpy().T
+            wav_data = wav.float().numpy().T
             return (sampling_rate, wav_data)
 
     # 原始推理模式
@@ -527,6 +530,10 @@ class IndexTTS:
         # 如果参考音频改变了，才需要重新生成 cond_mel, 提升速度
         if self.cache_cond_mel is None or self.cache_audio_prompt != audio_prompt:
             audio, sr = torchaudio.load(audio_prompt)
+            # Normalize: Linux torchaudio.load doesn't auto-normalize int16 like Windows does
+            max_val = torch.abs(audio).max()
+            if max_val > 1.0:
+                audio = audio / max_val
             audio = torch.mean(audio, dim=0, keepdim=True)
             if audio.shape[0] > 1:
                 audio = audio[0].unsqueeze(0)
@@ -647,7 +654,7 @@ class IndexTTS:
                     bigvgan_time += time.perf_counter() - m_start_time
                     wav = wav.squeeze(1)
 
-                wav = torch.clamp(32767 * wav, -32767.0, 32767.0)
+                wav = torch.clamp(wav, -1.0, 1.0)
                 if verbose:
                     print(f"wav shape: {wav.shape}", "min:", wav.min(), "max:", wav.max())
                 # wavs.append(wav[:, :-512])
@@ -673,13 +680,12 @@ class IndexTTS:
                 print(">> remove old wav file:", output_path)
             if os.path.dirname(output_path) != "":
                 os.makedirs(os.path.dirname(output_path), exist_ok=True)
-            torchaudio.save(output_path, wav.type(torch.int16), sampling_rate)
+            torchaudio.save(output_path, wav.float(), sampling_rate)
             print(">> wav file saved to:", output_path)
             return output_path
         else:
             # 返回以符合Gradio的格式要求
-            wav_data = wav.type(torch.int16)
-            wav_data = wav_data.numpy().T
+            wav_data = wav.float().numpy().T
             return (sampling_rate, wav_data)
 
 if __name__ == "__main__":
